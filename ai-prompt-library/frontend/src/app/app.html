@@ -1,0 +1,276 @@
+<div class="app-container">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo-icon">✨</div>
+      <div class="brand-text">
+        <h1>Prompt Studio</h1>
+        <span>Java + Spring Boot + Spring AI</span>
+      </div>
+    </div>
+
+    <!-- Category Selector -->
+    <div class="sidebar-section">
+      <h3>Categories</h3>
+      <div class="category-buttons">
+        <button 
+          *ngFor="let cat of categories" 
+          [class.active]="selectedCategory() === cat"
+          (click)="selectCategory(cat)">
+          <span class="icon" [ngSwitch]="cat">
+            <svg *ngSwitchCase="'Code'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            <svg *ngSwitchCase="'Documentation'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <svg *ngSwitchCase="'Testing'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <svg *ngSwitchCase="'Design'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          </span>
+          {{ cat }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Execution History -->
+    <div class="sidebar-section history-section">
+      <div class="section-header">
+        <h3>Run History</h3>
+        <select 
+          class="history-filter" 
+          [value]="selectedHistoryCategory()" 
+          (change)="selectedHistoryCategory.set($any($event.target).value)">
+          <option value="All">All Categories</option>
+          <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+        </select>
+      </div>
+
+      <div class="history-list-container">
+        <div *ngIf="filteredHistoryList().length === 0" class="empty-history">
+          <p>No prompt executions found</p>
+        </div>
+        
+        <div 
+          *ngFor="let item of filteredHistoryList()" 
+          class="history-card"
+          [class.active]="activeExecution()?.id === item.id"
+          (click)="loadFromHistory(item)">
+          <div class="history-card-header">
+            <span class="category-badge" [attr.data-category]="item.category">{{ item.category }}</span>
+            <span class="version-badge">v{{ item.version }}</span>
+          </div>
+          <h4 class="history-card-title">{{ item.promptTemplate }}</h4>
+          <p class="history-card-prompt">{{ item.inputPrompt }}</p>
+          <div class="history-card-footer">
+            <span class="time">{{ formatDate(item.createdAt) }}</span>
+            <div class="rating-indicator" *ngIf="item.rating !== null">
+              <span *ngIf="item.rating === 1" class="up">👍</span>
+              <span *ngIf="item.rating === -1" class="down">👎</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="main-content">
+    <header class="top-nav">
+      <div class="header-title">
+        <h2>AI Prompt Laboratory</h2>
+        <p>Design templates, review outputs, version prompts, and compare responses in real-time.</p>
+      </div>
+      <button class="new-prompt-btn" (click)="resetEditor()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New Prompt
+      </button>
+    </header>
+
+    <div class="workspace-grid">
+      <!-- INPUT PANEL -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <div class="header-left">
+            <span class="panel-icon">📝</span>
+            <h3>Prompt Editor</h3>
+          </div>
+          <span class="active-template-label">{{ activeTemplateTitle() }}</span>
+        </div>
+
+        <div class="panel-body">
+          <!-- Predefined Templates Selector -->
+          <div class="templates-container">
+            <label>Select a Template:</label>
+            <div class="template-pills">
+              <button 
+                *ngFor="let t of filteredTemplates()" 
+                class="template-pill"
+                [class.active]="activeTemplateTitle() === t.title"
+                (click)="selectTemplate(t)">
+                {{ t.title }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Prompt Input -->
+          <div class="input-container">
+            <textarea
+              [value]="inputPrompt()"
+              (input)="onPromptChange($event)"
+              placeholder="Enter your prompt here... Customize the selected template, or write a custom request."
+              rows="6"></textarea>
+          </div>
+
+          <div class="panel-actions">
+            <button class="btn btn-secondary" (click)="resetEditor()" [disabled]="isLoading()">Clear</button>
+            <button 
+              class="btn btn-primary btn-generate" 
+              (click)="generate()" 
+              [disabled]="isLoading() || !inputPrompt().trim()">
+              <span *ngIf="isLoading()" class="spinner"></span>
+              {{ isLoading() ? 'Generating...' : 'Generate with Spring AI' }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTS PANEL -->
+      <section class="panel results-panel">
+        <!-- LOADING STATE -->
+        <div *ngIf="isLoading()" class="loader-container">
+          <div class="pulse-loader"></div>
+          <h4>Engaging Spring AI Model...</h4>
+          <p>Processing prompt inputs, generating response structure, and caching schema...</p>
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div *ngIf="!activeExecution() && !isLoading()" class="empty-results">
+          <div class="empty-icon">🤖</div>
+          <h3>Ready for Generation</h3>
+          <p>Choose a category, select or type a prompt template, and click "Generate with Spring AI" to preview and evaluate the output.</p>
+        </div>
+
+        <!-- OUTPUT RENDERED -->
+        <div *ngIf="activeExecution() && !isLoading()" class="results-container">
+          
+          <!-- RESULT HEADER -->
+          <div class="results-toolbar">
+            <div class="toolbar-left">
+              <span class="active-version-pill">Version {{ activeExecution()?.version }}</span>
+              <span class="active-category-pill" [attr.data-category]="activeExecution()?.category">
+                {{ activeExecution()?.category }}
+              </span>
+              <span class="run-time">{{ formatDate(activeExecution()!.createdAt) }}</span>
+            </div>
+            
+            <div class="toolbar-actions">
+              <button class="btn-icon" (click)="copyToClipboard()" title="Copy to Clipboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Copy
+              </button>
+              <button class="btn-icon" (click)="exportOutput()" title="Export File">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export
+              </button>
+              <button 
+                *ngIf="relatedVersions().length > 1" 
+                class="btn-icon btn-compare-toggle" 
+                [class.active]="isComparing()" 
+                (click)="toggleComparison()">
+                ⚖️ {{ isComparing() ? 'Hide Compare' : 'Compare Versions' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- SPLIT OR SINGLE VIEW -->
+          <div class="views-layout" [class.split-view]="isComparing()">
+            
+            <!-- CODE VIEW (MAIN) -->
+            <div class="code-view-container">
+              <div class="code-header">
+                <span>Output Response</span>
+                <span class="file-name-label">
+                  {{ activeExecution()?.promptTemplate }}_v{{ activeExecution()?.version }}.{{ getFileExtension(activeExecution()!.category, activeExecution()!.outputResponse) }}
+                </span>
+              </div>
+              <div class="editor-pane">
+                <pre><code>{{ activeExecution()?.outputResponse }}</code></pre>
+              </div>
+            </div>
+
+            <!-- COMPARISON CODE VIEW -->
+            <div *ngIf="isComparing() && comparisonRun()" class="code-view-container comparison-view">
+              <div class="code-header">
+                <div class="comparison-selector-wrapper">
+                  <span>Compare with:</span>
+                  <select 
+                    [value]="comparisonRun()?.version" 
+                    (change)="selectComparisonVersion($any($event.target).value)">
+                    <option 
+                      *ngFor="let run of relatedVersions()" 
+                      [value]="run.version"
+                      [disabled]="run.version === activeExecution()?.version">
+                      Version {{ run.version }} ({{ formatDate(run.createdAt) }})
+                    </option>
+                  </select>
+                </div>
+                <span class="file-name-label">
+                  v{{ comparisonRun()?.version }} (Previous)
+                </span>
+              </div>
+              <div class="editor-pane comparison-pane">
+                <pre><code>{{ comparisonRun()?.outputResponse }}</code></pre>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- EVALUATION PANEL (REVIEW NOTES & RATINGS) -->
+          <div class="evaluation-panel">
+            <div class="evaluation-header">
+              <span class="panel-icon">🔍</span>
+              <h3>Developer Output Review & Feedback</h3>
+            </div>
+            
+            <div class="evaluation-body">
+              <!-- Rating (Helpful/Not) -->
+              <div class="rating-box">
+                <label>Quality Rating:</label>
+                <div class="rating-buttons">
+                  <button 
+                    class="btn-rating btn-up" 
+                    [class.active]="rating() === 1"
+                    (click)="setRating(1)">
+                    👍 Useful Output
+                  </button>
+                  <button 
+                    class="btn-rating btn-down" 
+                    [class.active]="rating() === -1"
+                    (click)="setRating(-1)">
+                    👎 Needs Work
+                  </button>
+                </div>
+              </div>
+
+              <!-- Review Notes -->
+              <div class="review-notes-box">
+                <label for="reviewNotes">Review Notes & Changes Made (stored in DB):</label>
+                <textarea
+                  id="reviewNotes"
+                  [(ngModel)]="reviewNotes"
+                  placeholder="Record any bugs found, code quality concerns, and the improvements you implemented on top of the AI output..."
+                  rows="3"></textarea>
+                
+                <div class="review-actions">
+                  <span class="db-indicator" *ngIf="!isSavingReview()">💾 Saved to Database</span>
+                  <span class="db-indicator saving" *ngIf="isSavingReview()">💾 Saving...</span>
+                  <button class="btn btn-secondary btn-save-review" (click)="saveReview()" [disabled]="isSavingReview()">
+                    Save Review Notes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+    </div>
+  </main>
+</div>
